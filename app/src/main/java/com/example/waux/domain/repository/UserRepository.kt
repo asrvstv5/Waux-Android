@@ -63,7 +63,7 @@ open class UserRepository(private val sharedPreferences: SharedPreferences) {
     }
 
     fun savePlaylist(playlist: Playlist) {
-        _playlist.value = playlist
+        _playlist.value = playlist.copy() // Make a copy to ensure immutability
     }
 
     fun saveSession(session: Session) {

@@ -59,6 +59,8 @@ fun SessionPageView(
     // val socketClient = SocketClient();
     LaunchedEffect(Unit) {
         session?.let {
+            // Get the session
+            viewModel.refreshSession()
             viewModel.socket_connect(sessionId = session!!.id, userId = userRepository.user.value!!.userId)
             //socketClient.connect(sessionId = session!!.id, userId = userRepository.user.value!!.userId)
             if (sharedText != null) {
@@ -161,7 +163,23 @@ fun SessionPageView(
                 lazyListState = stateList,
                 draggableItemsNum = draggableItems,
                 onMove = { fromIndex, toIndex ->
-                    list1 = list1.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+                    // Safeguard: Check if the indices are within the bounds of the list
+                    if (fromIndex in list1.indices && toIndex in list1.indices) {
+                        // Log for debugging
+                        Log.d("DragDrop", "Moving item from $fromIndex to $toIndex")
+
+                        // Perform the reordering
+                        list1 = list1.toMutableList().apply {
+                            add(toIndex, removeAt(fromIndex))
+                        }
+
+                        // Create a new playlist and update the repository
+                        val newPlaylist = playlist.copy(songList = list1)
+                        userRepository.savePlaylist(newPlaylist)
+                    } else {
+                        // Log if the indices are out of bounds
+                        Log.e("DragDrop", "Index out of bounds: fromIndex=$fromIndex, toIndex=$toIndex, list size=${list1.size}")
+                    }
                 }
             )
 
