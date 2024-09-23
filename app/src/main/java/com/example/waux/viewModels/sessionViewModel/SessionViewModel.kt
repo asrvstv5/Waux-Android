@@ -119,4 +119,13 @@ class SessionViewModel(
             }
         }
     }
+
+    fun updatePlaylist(songList: List<SongEntry>) {
+        userRepository.savePlaylist(playlist = Playlist(
+            songList = songList,
+            authorName = userRepository.playlist.value.authorName,
+            sessionId = userRepository.playlist.value.sessionId,
+            currentSongId = userRepository.playlist.value.currentSongId
+        ))
+    }
 }

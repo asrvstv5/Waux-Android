@@ -55,6 +55,7 @@ fun SessionPageView(
     // Collect the session and playlist data from the repository
     val session by userRepository.sessionData.collectAsState(initial = null)
     val playlist by userRepository.playlist.collectAsState(initial = Playlist())
+    var list1  = playlist.songList
     // val webSocketClient = WebSocketClient("ws://10.0.2.2:5000/socket.io/?EIO=4&transport=websocket")
     // val socketClient = SocketClient();
     LaunchedEffect(Unit) {
@@ -89,12 +90,6 @@ fun SessionPageView(
             Text(
                 text = session?.name ?: "Session Name",
                 fontSize = 20.sp
-            )
-
-            // Display session name from repository
-            Text(
-                text = session?.id ?: "Session Id",
-                fontSize = 12.sp
             )
 
             // Display playlist image and song title (placeholder if no data yet)
@@ -155,7 +150,7 @@ fun SessionPageView(
             Spacer(modifier = Modifier.height(36.dp))
 
             // Draggable playlist items
-            var list1  = playlist.songList
+
             val draggableItems by remember { derivedStateOf { list1.size } }
             val stateList = rememberLazyListState()
 
@@ -164,12 +159,12 @@ fun SessionPageView(
                 draggableItemsNum = draggableItems,
                 onMove = { fromIndex, toIndex ->
                     // Safeguard: Check if the indices are within the bounds of the list
-                    if (fromIndex in list1.indices && toIndex in list1.indices) {
+                    if (fromIndex in playlist.songList.indices && toIndex in playlist.songList.indices) {
                         // Log for debugging
                         Log.d("DragDrop", "Moving item from $fromIndex to $toIndex")
 
                         // Perform the reordering
-                        list1 = list1.toMutableList().apply {
+                        list1 = playlist.songList.toMutableList().apply {
                             add(toIndex, removeAt(fromIndex))
                         }
 
@@ -230,8 +225,12 @@ private fun Item(
                 modifier = Modifier.padding(top = 14.dp, start = 16.dp).width(25.dp)
             )
             // Name of the song added
+            // Name of the song added
             Text(
-                text = songEntry.song.name,
+                text = if (songEntry.song.name.length > 28)
+                    songEntry.song.name.take(25) + "..."
+                else
+                    songEntry.song.name,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(16.dp)
             )
