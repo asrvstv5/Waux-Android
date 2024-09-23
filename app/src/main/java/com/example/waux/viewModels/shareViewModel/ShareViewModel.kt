@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.waux.data.model.Session
 import com.example.waux.domain.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,10 +22,15 @@ class ShareViewModel(
 ) : AndroidViewModel(application) {
 
     private val _prefName = "user_prefs"
+    val session: StateFlow<Session?> = userRepository.sessionData;
 
     // SharedPreferences instance to store refresh token
     private val sharedPreferences: SharedPreferences =
         application.getSharedPreferences(_prefName, Context.MODE_PRIVATE)
+
+    fun saveSharedText(text: String?) {
+        userRepository.saveSharedText(text = text)
+    }
 
     fun fetchTitleTask(url: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
@@ -52,5 +58,4 @@ class ShareViewModel(
             }
         }
     }
-
 }

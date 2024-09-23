@@ -8,6 +8,7 @@ import com.example.waux.network.models.LoginRequest
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import com.example.waux.network.models.LoginResponse
+import com.example.waux.network.models.TokenCheckResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
@@ -35,4 +36,15 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: CreateSessionRequest
     ): CreateSessionResponse
+
+    @GET("session")
+    suspend fun getSession(
+        @Header("Authorization") token: String,
+        @Query("session_id") sessionId: String
+    ): JoinSessionResponse
+
+    @GET("tokenCheck")
+    suspend fun tokenCheck(
+        @Header("Authorization") token: String,
+    ): TokenCheckResponse
 }

@@ -25,3 +25,10 @@ data class CreateSessionResponse(
     @SerializedName("session_id") val sessionId: String,
     val host: String
 )
+
+data class TokenCheckResponse(
+    val message: String,
+    @SerializedName("user_id") val userId: String,
+    val username: String,
+    val currentSession: String?
+)

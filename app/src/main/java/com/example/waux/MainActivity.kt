@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,10 +21,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.waux.components.BottomNavigationBar
+import com.example.waux.data.model.Session
 import com.example.waux.data.model.User
 import com.example.waux.domain.repository.UserRepository
 import com.example.waux.pages.HomePageView
@@ -61,49 +67,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        var startPage = "home"
-        val sessionId: StateFlow<String?> = repository.sessionId
-
-        // Handle intent when the activity is first created
-        if (intent?.action == Intent.ACTION_SEND) {
-            if (sessionId.value != null) {
-                startPage = "session"
-                handleSendIntent(intent, repository, shareViewModel)
-            }
-        }
-
         setContent {
+            val navController = rememberNavController()
+
             WauxTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
-                        startPage = startPage,
                         viewModels = viewModels,
-                        repository = repository
+                        repository = repository,
+                        navController = navController,
+                        intent = intent,
                     )
-                }
-            }
-        }
-    }
-
-    private fun handleSendIntent(intent: Intent, repository: UserRepository, viewModel: ShareViewModel) {
-        when (intent.type) {
-            "text/plain" -> {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-                if (sharedText != null) {
-                    viewModel.fetchTitleTask(url = sharedText, onResult = {})
-                }
-            }
-            "image/*" -> {
-                val imageUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                }
-
-                if (imageUri != null) {
-                    // Handle the shared image URI
                 }
             }
         }
@@ -114,18 +89,26 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(
     modifier: Modifier = Modifier,
-    startPage: String = "home",
     viewModels:  Map<String, ViewModel>,
-    repository: UserRepository
+    repository: UserRepository,
+    navController: NavHostController,
+    intent: Intent?,
 ) {
+
+    Log.d("ShareSong", "mainscreen started")
+    if (intent != null) {
+        Log.d("ShareSong", "intent is ${intent.type}")
+    } else {
+        Log.d("ShareSong", "intent is null on mainscreen")
+    }
     // Simulating login state
     // var isLoggedIn by remember { mutableStateOf(false) }
     // Observe the user state from the repository using collectAsState
     val user by repository.user.collectAsState(initial = null) // Provide an initial value (null)
 
-    val navController = rememberNavController()
-
     if(user == null) {
+        // Check if refresh Token exists.
+        Log.d("ShareSong", "user null")
         LoginPageView(
             viewModel = viewModels["loginViewModel"] as LoginViewModel
         )
@@ -137,6 +120,16 @@ fun MainScreen(
                 viewModel = viewModels["loginViewModel"] as LoginViewModel
             )
         } else {
+            Log.d("ShareSong", "login done")
+            var startPage = "home"
+            // Handle intent when the activity is first created
+            if (intent?.action == Intent.ACTION_SEND) {
+                Log.d("ShareSong", "got intent")
+                // Pass the navController here to handle navigation inside composables
+                HandleSendIntent(intent, repository, viewModels["shareViewModel"] as ShareViewModel, navController)
+            } else {
+                Log.d("ShareSong", "no intent")
+            }
             // Show main screen after login
             Scaffold(
                 bottomBar = { BottomNavigationBar(navController) }
@@ -146,12 +139,60 @@ fun MainScreen(
                     startDestination = startPage,
                     modifier = Modifier.padding(innerPadding)
                 ) {
-                    composable("home") { HomePageView(viewModel = viewModels["sessionViewModel"] as SessionViewModel, repository = repository) }
-                    composable("session") { SessionPageView(userRepository = repository) }
+                    composable(
+                        route = "home"
+                    ) { HomePageView(viewModel = viewModels["sessionViewModel"] as SessionViewModel, repository = repository) }
+
+                    composable(
+                        route = "session?sharedText={sharedText}",
+                        arguments = listOf(navArgument("sharedText") { nullable = true; type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val sharedText = backStackEntry.arguments?.getString("sharedText")
+                        SessionPageView(
+                            viewModel = viewModels["sessionViewModel"] as SessionViewModel,
+                            userRepository = repository,
+                            sharedText = sharedText
+                        )
+                    }
+
                     composable("profile") { ProfilePageView(navController, modifier = Modifier) }
                 }
             }
         }
     }
 
+}
+
+@Composable
+fun HandleSendIntent(
+    intent: Intent,
+    repository: UserRepository,
+    shareViewModel: ShareViewModel,
+    navController: NavController
+) {
+    Log.d("ShareSong", "handling send intent")
+    // Check for sessionId.
+    val session by shareViewModel.session.collectAsState();
+    when (intent.type) {
+        "text/plain" -> {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (sharedText != null && session?.id != null && session?.id != "") {
+                // Navigate to the session page with the shared text
+                shareViewModel.saveSharedText(sharedText);
+                navController.navigate("session?sharedText=${Uri.encode(sharedText)}")
+            }
+        }
+        "image/*" -> {
+            val imageUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
+
+            if (imageUri != null) {
+                // Handle image URI, navigate if necessary
+            }
+        }
+    }
 }

@@ -27,6 +27,9 @@ open class UserRepository(private val sharedPreferences: SharedPreferences) {
     private var _refreshToken = MutableStateFlow<String?>(null)
     var refreshToken: StateFlow<String?> = _refreshToken
 
+    private var _sharedText = MutableStateFlow<String?>(null)
+    var sharedText: StateFlow<String?> = _sharedText
+
     private val _keyJwtToken = "waux_jwt_token"
     private val _keyRefreshToken = "waux_refresh_token"
 
@@ -35,6 +38,10 @@ open class UserRepository(private val sharedPreferences: SharedPreferences) {
 
     fun saveJwtToken(token: String?) {
         sharedPreferences.edit().putString(_keyJwtToken, token).apply()
+    }
+
+    fun saveSharedText(text: String?) {
+        _sharedText.value = text;
     }
 
     fun saveRefreshToken(refreshToken: String) {

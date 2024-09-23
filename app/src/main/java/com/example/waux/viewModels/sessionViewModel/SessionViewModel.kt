@@ -8,9 +8,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.waux.data.model.Playlist
 import com.example.waux.data.model.Session
+import com.example.waux.data.model.Song
+import com.example.waux.data.model.SongEntry
 import com.example.waux.data.model.User
 import com.example.waux.domain.repository.UserRepository
 import com.example.waux.network.RetrofitBuilder
+import com.example.waux.network.SocketClient
 import com.example.waux.network.models.JoinSessionRequest
 import com.example.waux.network.models.LoginRequest
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +68,54 @@ class SessionViewModel(
                 withContext(Dispatchers.Main) {
                     onResult()
                 }
+            }
+        }
+    }
+
+    fun socket_connect(sessionId: String, userId: String) {
+        SocketClient.connect(
+            sessionId = sessionId,
+            userId = userId,
+            onRefreshSession = { refreshSession() }
+        )
+    }
+
+    fun socket_disconnect() {
+        SocketClient.disconnect()
+    }
+
+    fun socket_addSong(songUri: String) {
+        Log.w("SessionViewModel", "socket_addSong")
+
+        val songEntry = SongEntry(
+            song = Song(
+                uri = songUri,
+                name = "New Song"
+            ),
+            author = userRepository.user.value!!.userId
+        )
+        SocketClient.addSong(
+            songEntry = songEntry,
+            sessionId = userRepository.sessionData.value!!.id
+        )
+    }
+
+    fun refreshSession () {
+        viewModelScope.launch {
+            try {
+                // Make a call to login
+                val apiService = RetrofitBuilder.apiService
+                val token = userRepository.getJwtToken()
+                Log.w("SessionViewModel", "refreshSession - got token")
+
+                val refreshSessionResponse = apiService.getSession(
+                    token = token!!,
+                    sessionId = userRepository.sessionData.value!!.id
+                )
+                val playlist: Playlist = refreshSessionResponse.playlist;
+                userRepository.savePlaylist(playlist=playlist)
+            } catch (e: Exception) {
+                Log.e("SessionViewModel", "refreshSession", e)
             }
         }
     }

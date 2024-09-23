@@ -6,10 +6,12 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.waux.data.model.Session
 import com.example.waux.data.model.User
 import com.example.waux.domain.repository.UserRepository
 import com.example.waux.network.RetrofitBuilder
 import com.example.waux.network.models.LoginRequest
+import com.example.waux.network.models.LoginResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +43,7 @@ class LoginViewModel(
                     val apiService = RetrofitBuilder.apiService
                     val loginResponse = apiService.login(guestUser = "true", request = LoginRequest())
                     // Store the jwt token, username, user_id in userRepository
-                    val user: User = User(
+                    val user = User(
                         userId = loginResponse.userId,
                         username = loginResponse.username
                     )
@@ -61,4 +63,41 @@ class LoginViewModel(
         }
     }
 
+    fun autoLogin() {
+        Log.d("ShareSong", "auto login")
+        // Check if jwt token exists.
+        val jwtToken = userRepository.getJwtToken();
+        if (jwtToken != null) {
+            // Check if jwt token is valid
+            viewModelScope.launch {
+                try{
+                    // Make a call to check token
+                    val apiService = RetrofitBuilder.apiService
+                    val loginResponse = apiService.tokenCheck(token = jwtToken)
+                    if (loginResponse.message == "Token is valid") {
+                        userRepository.saveUser(user = User(
+                            userId = loginResponse.userId,
+                            username = loginResponse.username,
+                            isGuestUser = "true"
+                        ));
+
+                        if(loginResponse.currentSession!=null){
+                            // Get Session
+                            val sessionResponse = apiService.getSession(
+                                token=jwtToken,
+                                sessionId = loginResponse.currentSession
+                            )
+                            userRepository.saveSession(session = Session(
+                                id = sessionResponse.sessionId,
+                                name = sessionResponse.name,
+                                host = sessionResponse.host.userId
+                            ))
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("loginViewModel", "autoLogin", e)
+                }
+            }
+        }
+    }
 }
